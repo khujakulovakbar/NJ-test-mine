@@ -32,6 +32,8 @@ class ResCompany(models.Model):
         'res.users', 'nj_company_notify_penalty_rel', 'company_id', 'user_id', "Списана пеня")
     nj_notify_prepay_user_ids = fields.Many2many(
         'res.users', 'nj_company_notify_prepay_rel', 'company_id', 'user_id', "Досрочное погашение")
+    nj_notify_paid_user_ids = fields.Many2many(
+        'res.users', 'nj_company_notify_paid_rel', 'company_id', 'user_id', "Оплачено вовремя / кредит закрыт")
 
     def _nj_recipients(self, event):
         """Users for a notification event; empty list → the CFO only."""

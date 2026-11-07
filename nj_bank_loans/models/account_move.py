@@ -41,6 +41,7 @@ class AccountMove(models.Model):
                     ('move_id', 'in', moves.ids), ('account_id', 'in', accounts.ids),
                     ('debit', '>', 0), ('nj_loan_payment_ids', '=', False)])
                 if lines:
+                    Loan._nj_autoset_fact_start()
                     Loan.match_statement_lines(lines)
         except Exception:  # noqa: BLE001 - accounting must not fail because of the loan registry
             _logger.exception("nj_bank_loans: automatic matching of posted entries failed")

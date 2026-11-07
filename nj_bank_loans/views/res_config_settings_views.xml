@@ -27,8 +27,11 @@
                         <setting string="Списана пеня" help="Банк списал пеню / штраф с расчётного счёта.">
                             <field name="nj_notify_penalty_user_ids" widget="many2many_tags"/>
                         </setting>
-                        <setting string="Досрочное погашение" help="Найдено досрочное погашение: пересчёт графика и экономия.">
+                        <setting string="Досрочное погашение (синее)" help="Найдено досрочное погашение: пересчёт графика и экономия.">
                             <field name="nj_notify_prepay_user_ids" widget="many2many_tags"/>
+                        </setting>
+                        <setting string="Оплачено вовремя / кредит закрыт (зелёное)" help="Платёж оплачен в плановый день (выходной — в следующий рабочий) и полностью; кредит погашен.">
+                            <field name="nj_notify_paid_user_ids" widget="many2many_tags"/>
                         </setting>
                     </block>
                     <block title="Кредиты: факт из выписок банка" name="nj_fact" groups="nj_bank_loans.group_nj_loan_manager">

@@ -17,3 +17,4 @@ class ResConfigSettings(models.TransientModel):
     nj_notify_overdue_user_ids = fields.Many2many(related='company_id.nj_notify_overdue_user_ids', readonly=False)
     nj_notify_penalty_user_ids = fields.Many2many(related='company_id.nj_notify_penalty_user_ids', readonly=False)
     nj_notify_prepay_user_ids = fields.Many2many(related='company_id.nj_notify_prepay_user_ids', readonly=False)
+    nj_notify_paid_user_ids = fields.Many2many(related='company_id.nj_notify_paid_user_ids', readonly=False)

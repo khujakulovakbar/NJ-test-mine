@@ -324,6 +324,7 @@ class NjLoan(models.Model):
                             ", ".join(skipped.mapped('label')))
             return False
         wizard.action_import()
+        self._nj_autoset_fact_start()
         if skipped:
             _logger.warning("nj_bank_loans: autoload skipped loans without a bank partner: %s",
                             ", ".join(skipped.mapped('label')))
@@ -604,6 +605,55 @@ class NjLoan(models.Model):
 
     # ------------------------------------------------------------------ reminders
     @api.model
+    def _paid_on_time(self, since, today, companies):
+        """[(loan, plan date, planned amount)] paid in full on the exact plan date — or, when the date is a
+        weekend, on the next working day.  Principal and interest are netted (1C may split them
+        differently, see D32); tolerance = «Допуск по сумме»."""
+        plans = self.env['nj.loan.line'].search([
+            ('loan_id.company_id', 'in', companies.ids), ('loan_id.state', 'in', ('active', 'closed')),
+            ('kind', 'in', PAY_KINDS), ('amount', '!=', 0), ('date', '>=', since), ('date', '<=', today)])
+        if not plans:
+            return []
+        planned = defaultdict(float)
+        for line in plans:
+            planned[(line.loan_id, line.date)] += line.amount
+        paid = defaultdict(float)
+        for pay in self.env['nj.loan.payment'].search([
+                ('loan_id', 'in', plans.loan_id.ids), ('kind', 'in', ('principal', 'interest')),
+                ('date', '>=', since), ('date', '<=', today + datetime.timedelta(days=2))]):
+            paid[(pay.loan_id, pay.date)] += pay.amount
+        res = []
+        for (loan, day), amount in sorted(planned.items(), key=lambda kv: (kv[0][1], kv[0][0].id)):
+            days = [day]
+            if day.weekday() >= 5:                      # Sat / Sun: the bank debits on Monday
+                days.append(day + datetime.timedelta(days=7 - day.weekday()))
+            got = sum(paid.get((loan, d), 0.0) for d in days)
+            tol = max(loan.currency_id.rounding,
+                      amount * (loan.company_id.nj_match_tolerance or 1.0) / 100.0)
+            if got and abs(got - amount) <= tol:
+                res.append((loan, day, amount))
+        return res
+
+    @api.model
+    def _nj_autoset_fact_start(self):
+        """«Факт из выписок с» is empty → the first month that has posted bank lines on the loan accounts,
+        so plan-fact and overdue control work without a manual setting.  Only fills an empty value."""
+        for company in self.env['res.company'].search([('nj_fact_start_date', '=', False)]):
+            loans = self.search([('company_id', '=', company.id), ('state', 'in', ('active', 'closed'))])
+            if not loans:
+                continue
+            accounts = loans.principal_account_id | loans.interest_account_id
+            first = self.env['account.move.line'].search([
+                ('company_id', '=', company.id), ('parent_state', '=', 'posted'),
+                ('account_id', 'in', accounts.ids), ('debit', '>', 0),
+                ('partner_id', 'child_of', loans.bank_id.commercial_partner_id.ids)], order='date, id', limit=1)
+            if first:
+                company.sudo().nj_fact_start_date = first.date.replace(day=1)
+                loans.match_statement_lines()
+                loans._refresh_status()
+        return True
+
+    @api.model
     def _upcoming(self, today, days_ahead):
         """Planned payments grouped by (company, bank, date) for active loans."""
         lines = self.env['nj.loan.line'].search([
@@ -665,6 +715,7 @@ class NjLoan(models.Model):
     @api.model
     def _cron_daily(self):
         today = fields.Date.context_today(self)
+        self._nj_autoset_fact_start()
         self.search([('state', 'in', ('active', 'closed'))])._refresh_status(today)
         self.match_statement_lines()
         self._create_reminder_activities(today)
@@ -720,7 +771,9 @@ class NjLoan(models.Model):
 
         red    — overdue, penalty debited by the bank, payment due within «Срочно» days (3)
         yellow — payment due within «Скоро» days (7)
-        green  — early repayment found
+        blue   — early repayment found
+        green  — a planned payment paid in full on the exact day (weekend → next working day);
+                 a loan fully repaid
 
         A payment is announced twice at most: yellow when it enters the «soon» window and red
         when it enters the «urgent» one — these are different events, not a repeat.
@@ -790,11 +843,26 @@ class NjLoan(models.Model):
             ('company_id', 'in', companies.ids), ('date', '>=', since)])
         pre = pre.filtered(lambda r: once("pre:%s" % r.id))
         if pre:
-            res.append({'type': 'success', 'title': "Досрочное погашение: экономия %s" % _money(
+            res.append({'type': 'info', 'title': "Досрочное погашение: экономия %s" % _money(
                             self.env, sum(pre.mapped('gain')), pre[:1].currency_id),
                         'message': "; ".join("%s %s досрочно %s" % (r.loan_id.name, format_date(self.env, r.date),
                                                                     _money(self.env, r.amount, r.currency_id))
                                              for r in pre[:5])})
+        companies = user.company_ids.filtered(lambda c: user in c._nj_recipients('paid'))
+        if companies:
+            ok = [(l, d, a) for l, d, a in self.sudo()._paid_on_time(since, today, companies)
+                  if once("paid:%s:%s" % (l.id, d))]
+            if ok:
+                res.append({'type': 'success', 'title': "Платёж оплачен вовремя",
+                            'message': "; ".join("%s %s · %s" % (l.name, format_date(self.env, d),
+                                                                _money(self.env, a, l.currency_id))
+                                                 for l, d, a in ok[:5])})
+            closed = self.sudo().search([('company_id', 'in', companies.ids), ('state', '=', 'closed')]).filtered(
+                lambda l: l.line_ids and since <= max(l.line_ids.mapped('date')) <= today
+                and once("closed:%s" % l.id))
+            if closed:
+                res.append({'type': 'success', 'title': "Кредит закрыт",
+                            'message': "; ".join("%s (%s)" % (l.name, l.bank_id.display_name) for l in closed[:5])})
         if fresh:
             Notice.create([{'user_id': user.id, 'key': k} for k in fresh])
         user.sudo().nj_reminder_date = today

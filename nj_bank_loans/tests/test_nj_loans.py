@@ -593,11 +593,12 @@ class TestNjLoans(AccountTestInvoicingCommon):
         self._loan('T-L', self.bank_a, [(today - datetime.timedelta(days=60), 'disb', 10_000.0),
                                         (today + datetime.timedelta(days=20), 'principal', 10_000.0)])
         self.assertEqual(Loan.nj_popup_reminders(), [])
-        # a prepayment is green and also shown once
+        # a prepayment is blue and also shown once
         loan = self._schedule_loan('term')
         loan._apply_prepayment(today, 20_000.0, mode='term')
         green = Loan.nj_popup_reminders()
-        self.assertIn('success', [i['type'] for i in green])
+        self.assertIn('info', [i['type'] for i in green])
+        self.assertNotIn('success', [i['type'] for i in green])
         self.assertTrue(any("Досрочное погашение" in i['title'] for i in green))
         self.assertEqual(Loan.nj_popup_reminders(), [])
 
@@ -655,3 +656,33 @@ class TestNjLoans(AccountTestInvoicingCommon):
         self.assertEqual(Loan.search_count([('company_id', '=', self.env.company.id)]), 10)
         self.assertFalse(Loan._nj_autoload_master(), "second call must do nothing")
         self.assertEqual(Loan.search_count([('company_id', '=', self.env.company.id)]), 10)
+
+    # ------------------------------------------------------------------ v1.2.5: green events, fact start
+    def test_26_green_paid_on_time_and_closed(self):
+        """Green: paid in full on the plan day; loan fully repaid. A partial payment is not green."""
+        co = self.env.company
+        co.nj_cfo_user_id = self.env.user
+        self.env.user.group_ids |= self.env.ref('nj_bank_loans.group_nj_loan_user')
+        today = datetime.date.today()
+        day = today - datetime.timedelta(days=3)
+        loan = self._loan('T-G', self.bank_a, [(today - datetime.timedelta(days=60), 'disb', 50_000.0),
+                                               (day, 'principal', 50_000.0)])
+        part = self._loan('T-P', self.bank_b, [(today - datetime.timedelta(days=60), 'disb', 20_000.0),
+                                               (day, 'principal', 20_000.0),
+                                               (today + datetime.timedelta(days=40), 'principal', 0.01)])
+        self._bank_line(self.bank_a, self.acc_principal, day, 50_000.0, "погашение")
+        self._bank_line(self.bank_b, self.acc_principal, day, 10_000.0, "частично")
+        (loan | part)._refresh_status(today)
+        self.assertEqual(loan.state, 'closed')
+        items = self.env['nj.loan'].with_context(tz='UTC').nj_popup_reminders()
+        green = [i for i in items if i['type'] == 'success']
+        self.assertTrue(any("оплачен вовремя" in i['title'] for i in green))
+        self.assertTrue(any("Кредит закрыт" in i['title'] for i in green))
+        self.assertFalse(any('T-P' in i['message'] for i in green), "partial payment must not be green")
+        self.assertEqual([i for i in self.env['nj.loan'].nj_popup_reminders() if i['type'] == 'success'], [])
+
+    def test_27_fact_start_is_set_from_first_posted_statement(self):
+        self.env.company.nj_fact_start_date = False
+        self._loan('T-F', self.bank_a, [(D(2026, 8, 1), 'disb', 100_000.0), (D(2026, 9, 20), 'principal', 10_000.0)])
+        self._bank_line(self.bank_a, self.acc_principal, D(2026, 9, 20), 10_000.0, "погашение")
+        self.assertEqual(self.env.company.nj_fact_start_date, D(2026, 9, 1))

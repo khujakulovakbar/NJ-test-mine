@@ -3,4 +3,6 @@
     <!-- First install: the loans appear inside Loans by themselves (bundled master Excel).
          Idempotent: the method does nothing if the company already has loans. -->
     <function model="nj.loan" name="_nj_autoload_master"/>
+    <!-- Empty «Факт из выписок с» → the first month with posted bank lines (plan-fact works at once). -->
+    <function model="nj.loan" name="_nj_autoset_fact_start"/>
 </odoo>
