@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_nj_loan_dashboard_form" model="ir.ui.view">
+        <field name="name">nj.loan.dashboard.form</field>
+        <field name="model">nj.loan.dashboard</field>
+        <field name="arch" type="xml">
+            <form string="Обзор кредитов" create="0" delete="0">
+                <header>
+                    <button name="action_refresh" type="object" string="Обновить" class="btn-primary"/>
+                    <button name="action_match" type="object" string="Сопоставить выписки"
+                            groups="nj_bank_loans.group_nj_loan_treasurer"/>
+                    <button name="action_import" type="object" string="Загрузить Excel"
+                            groups="nj_bank_loans.group_nj_loan_treasurer"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_open_overdue" type="object" class="oe_stat_button text-danger"
+                                icon="fa-exclamation-triangle" invisible="overdue_total == 0">
+                            <div class="o_stat_info"><span class="o_stat_value"><field name="overdue_total"/></span>
+                                <span class="o_stat_text">Просрочено</span></div>
+                        </button>
+                        <button name="action_open_unmatched" type="object" class="oe_stat_button"
+                                icon="fa-chain-broken" invisible="unmatched_count == 0">
+                            <field name="unmatched_count" widget="statinfo" string="Не сопоставлено"/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1>Обзор кредитов</h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="date"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                        <group>
+                            <field name="loan_count"/>
+                        </group>
+                    </group>
+                    <div class="row g-3 mb-3">
+                        <div class="col-6 col-lg-3"><div class="card"><div class="card-body">
+                            <div class="text-muted small">Долг на дату</div>
+                            <div class="fs-3 fw-bold"><field name="debt"/></div></div></div></div>
+                        <div class="col-6 col-lg-3"><div class="card"><div class="card-body">
+                            <div class="text-muted small">Платежи за 30 дней</div>
+                            <div class="fs-3 fw-bold text-warning"><field name="pay_30"/></div></div></div></div>
+                        <div class="col-6 col-lg-3"><div class="card"><div class="card-body">
+                            <div class="text-muted small">Платежи до конца года</div>
+                            <div class="fs-3 fw-bold"><field name="pay_year"/></div></div></div></div>
+                        <div class="col-6 col-lg-3"><div class="card"><div class="card-body">
+                            <div class="text-muted small">Средневзвешенная ставка, %</div>
+                            <div class="fs-3 fw-bold"><field name="avg_rate"/></div></div></div></div>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-6 col-lg-3"><div class="card border-danger"><div class="card-body">
+                            <div class="text-muted small">Потери от просрочек (пени за год)</div>
+                            <div class="fs-3 fw-bold text-danger"><field name="penalty_year"/></div>
+                            <button name="action_open_penalties" type="object" string="Подробно" class="btn btn-link p-0"/>
+                        </div></div></div>
+                        <div class="col-6 col-lg-3"><div class="card border-success"><div class="card-body">
+                            <div class="text-muted small">Экономия от досрочных (за год)</div>
+                            <div class="fs-3 fw-bold text-success"><field name="gain_year"/></div>
+                            <button name="action_open_gains" type="object" string="Подробно" class="btn btn-link p-0"/>
+                        </div></div></div>
+                        <div class="col-6 col-lg-3"><div class="card"><div class="card-body">
+                            <div class="text-muted small">Стоимость дня просрочки</div>
+                            <div class="fs-3 fw-bold"><field name="delay_cost_day"/></div></div></div></div>
+                        <div class="col-6 col-lg-3"><div class="card"><div class="card-body">
+                            <div class="text-muted small">Погасить долга в 12 мес.</div>
+                            <div class="fs-3 fw-bold"><field name="current_portion"/></div></div></div></div>
+                    </div>
+                    <notebook>
+                        <page string="Платёжный календарь, 60 дней" name="calendar">
+                            <field name="calendar_html" nolabel="1"/>
+                        </page>
+                        <page string="По банкам" name="banks">
+                            <field name="bank_html" nolabel="1"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_server_nj_dashboard" model="ir.actions.server">
+        <field name="name">Обзор</field>
+        <field name="model_id" ref="model_nj_loan_dashboard"/>
+        <field name="state">code</field>
+        <field name="code">action = model.action_open()</field>
+    </record>
+</odoo>

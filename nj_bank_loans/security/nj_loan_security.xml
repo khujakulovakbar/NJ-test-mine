@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_groups_privilege_nj_loans" model="res.groups.privilege">
+        <field name="name">Кредиты</field>
+        <field name="category_id" ref="base.module_category_accounting"/>
+    </record>
+
+    <record id="group_nj_loan_user" model="res.groups">
+        <field name="name">Просмотр</field>
+        <field name="sequence">10</field>
+        <field name="privilege_id" ref="res_groups_privilege_nj_loans"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Видит кредиты, графики, план-факт и получает напоминания.</field>
+    </record>
+
+    <record id="group_nj_loan_treasurer" model="res.groups">
+        <field name="name">Казначей</field>
+        <field name="sequence">20</field>
+        <field name="privilege_id" ref="res_groups_privilege_nj_loans"/>
+        <field name="implied_ids" eval="[(4, ref('group_nj_loan_user'))]"/>
+        <field name="comment">Вводит и меняет кредиты и графики, загружает Excel, сопоставляет выписки.</field>
+    </record>
+
+    <record id="group_nj_loan_manager" model="res.groups">
+        <field name="name">Администратор</field>
+        <field name="sequence">30</field>
+        <field name="privilege_id" ref="res_groups_privilege_nj_loans"/>
+        <field name="implied_ids" eval="[(4, ref('group_nj_loan_treasurer'))]"/>
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+        <field name="comment">Удаляет кредиты и меняет настройки модуля.</field>
+    </record>
+
+    <data noupdate="1">
+        <record id="nj_loan_company_rule" model="ir.rule">
+            <field name="name">Кредиты: своя компания</field>
+            <field name="model_id" ref="model_nj_loan"/>
+            <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        </record>
+        <record id="nj_loan_line_company_rule" model="ir.rule">
+            <field name="name">График кредита: своя компания</field>
+            <field name="model_id" ref="model_nj_loan_line"/>
+            <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        </record>
+        <record id="nj_loan_rate_company_rule" model="ir.rule">
+            <field name="name">Ставки кредита: своя компания</field>
+            <field name="model_id" ref="model_nj_loan_rate"/>
+            <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        </record>
+        <record id="nj_loan_payment_company_rule" model="ir.rule">
+            <field name="name">Факт по кредиту: своя компания</field>
+            <field name="model_id" ref="model_nj_loan_payment"/>
+            <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        </record>
+        <record id="nj_loan_prepayment_company_rule" model="ir.rule">
+            <field name="name">Досрочные погашения: своя компания</field>
+            <field name="model_id" ref="model_nj_loan_prepayment"/>
+            <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        </record>
+        <record id="nj_loan_day_company_rule" model="ir.rule">
+            <field name="name">Дневной вид: своя компания</field>
+            <field name="model_id" ref="model_nj_loan_day"/>
+            <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        </record>
+        <record id="nj_loan_month_company_rule" model="ir.rule">
+            <field name="name">По месяцам: своя компания</field>
+            <field name="model_id" ref="model_nj_loan_month"/>
+            <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        </record>
+        <record id="nj_loan_planfact_company_rule" model="ir.rule">
+            <field name="name">План-факт: своя компания</field>
+            <field name="model_id" ref="model_nj_loan_planfact"/>
+            <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        </record>
+    </data>
+</odoo>

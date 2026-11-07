@@ -1,0 +1,524 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ======================= Loan ======================= -->
+    <record id="view_nj_loan_list" model="ir.ui.view">
+        <field name="name">nj.loan.list</field>
+        <field name="model">nj.loan</field>
+        <field name="arch" type="xml">
+            <list string="Кредиты" decoration-danger="urgency in ('overdue', 'urgent')" decoration-warning="urgency == 'soon'"
+                  decoration-muted="state == 'closed'">
+                <field name="name"/>
+                <field name="bank_id"/>
+                <field name="currency_id" column_invisible="True"/>
+                <field name="balance" sum="Итого" options="{'no_symbol': True}"/>
+                <field name="next_payment_date"/>
+                <field name="next_payment_amount" sum="Итого" options="{'no_symbol': True}"/>
+                <field name="days_to_next"/>
+                <field name="urgency" widget="badge" decoration-danger="urgency in ('overdue', 'urgent')"
+                       decoration-warning="urgency == 'soon'" decoration-info="urgency == 'later'"/>
+                <field name="overdue_amount" optional="show" sum="Итого" options="{'no_symbol': True}"/>
+                <field name="rate" string="Ставка, %"/>
+                <field name="basis" string="База"/>
+                <field name="contract" optional="show"/>
+                <field name="date_end" optional="hide"/>
+                <field name="user_id" optional="hide" widget="many2one_avatar_user"/>
+                <field name="state" optional="hide" widget="badge" decoration-success="state == 'active'"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+
+    <record id="view_nj_loan_kanban" model="ir.ui.view">
+        <field name="name">nj.loan.kanban</field>
+        <field name="model">nj.loan</field>
+        <field name="arch" type="xml">
+            <kanban class="o_kanban_mobile">
+                <field name="urgency"/>
+                <field name="currency_id"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="d-flex justify-content-between">
+                            <field name="name" class="fw-bold fs-5"/>
+                            <field name="urgency" widget="badge" decoration-danger="urgency in ('overdue', 'urgent')"
+                                   decoration-warning="urgency == 'soon'" decoration-info="urgency == 'later'"/>
+                        </div>
+                        <field name="bank_id" class="text-muted"/>
+                        <div class="d-flex justify-content-between mt-2">
+                            <span>Остаток</span><field name="balance" class="fw-bold"/>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span>След. платёж <field name="next_payment_date"/></span>
+                            <field name="next_payment_amount"/>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="view_nj_loan_form" model="ir.ui.view">
+        <field name="name">nj.loan.form</field>
+        <field name="model">nj.loan</field>
+        <field name="arch" type="xml">
+            <form string="Кредит">
+                <header>
+                    <button name="action_activate" type="object" string="Ввести в действие" class="btn-primary"
+                            invisible="state != 'draft'" groups="nj_bank_loans.group_nj_loan_treasurer"/>
+                    <button name="%(action_nj_loan_generate_wizard)d" type="action" string="Сформировать график"
+                            invisible="state != 'draft'" groups="nj_bank_loans.group_nj_loan_treasurer"
+                            context="{'default_loan_id': id}"/>
+                    <button name="%(action_nj_loan_prepay_wizard)d" type="action" string="Досрочное погашение"
+                            invisible="state != 'active'" groups="nj_bank_loans.group_nj_loan_treasurer"
+                            context="{'default_loan_id': id}"/>
+                    <button name="%(action_nj_loan_schedule_wizard)d" type="action" string="Загрузить график банка"
+                            invisible="state == 'closed'" groups="nj_bank_loans.group_nj_loan_treasurer"
+                            context="{'default_loan_id': id}"/>
+                    <button name="action_recompute_interest" type="object" string="Пересчитать проценты"
+                            invisible="state != 'active'" groups="nj_bank_loans.group_nj_loan_treasurer"
+                            confirm="Будущие выплаты процентов будут пересчитаны по дневному начислению. Продолжить?"/>
+                    <button name="action_open_daily" type="object" string="Дневной вид (как в Excel)"/>
+                    <button name="action_set_draft" type="object" string="В черновик" invisible="state != 'active'"
+                            groups="nj_bank_loans.group_nj_loan_manager"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,active,closed"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_open_planfact" type="object" class="oe_stat_button" icon="fa-balance-scale"
+                                string="План-факт"/>
+                        <button name="action_open_payments" type="object" class="oe_stat_button" icon="fa-university">
+                            <field name="payment_count" widget="statinfo" string="Факт из банка"/>
+                        </button>
+                        <button name="action_open_penalties" type="object" class="oe_stat_button text-danger"
+                                icon="fa-gavel" invisible="penalty_total == 0">
+                            <div class="o_stat_info"><span class="o_stat_value"><field name="penalty_total"/></span>
+                                <span class="o_stat_text">Пени</span></div>
+                        </button>
+                        <button name="action_open_prepayments" type="object" class="oe_stat_button text-success"
+                                icon="fa-leaf" invisible="gain_total == 0">
+                            <div class="o_stat_info"><span class="o_stat_value"><field name="gain_total"/></span>
+                                <span class="o_stat_text">Экономия</span></div>
+                        </button>
+                        <button name="action_open_adjustments" type="object" class="oe_stat_button" icon="fa-wrench"
+                                invisible="adjustment_count == 0">
+                            <field name="adjustment_count" widget="statinfo" string="Корректировки"/>
+                        </button>
+                    </div>
+                    <widget name="web_ribbon" title="Погашен" bg_color="text-bg-success" invisible="state != 'closed'"/>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="K-11"/></h1>
+                        <field name="contract" placeholder="Договор № … от …" class="fs-5"/>
+                    </div>
+                    <group>
+                        <group string="Договор">
+                            <field name="bank_id"/>
+                            <field name="contract_date"/>
+                            <field name="currency_id" options="{'no_create': True}"/>
+                            <field name="amount"/>
+                            <field name="date_start"/>
+                            <field name="date_end"/>
+                            <field name="user_id" widget="many2one_avatar_user"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                        <group string="Состояние">
+                            <field name="balance"/>
+                            <field name="next_payment_date"/>
+                            <field name="next_payment_amount"/>
+                            <field name="days_to_next"/>
+                            <field name="urgency" widget="badge" decoration-danger="urgency in ('overdue', 'urgent')"
+                                   decoration-warning="urgency == 'soon'" decoration-info="urgency == 'later'"/>
+                            <field name="overdue_amount" invisible="overdue_amount == 0" class="text-danger"/>
+                            <field name="overdue_since" invisible="not overdue_since"/>
+                            <field name="delay_cost_day" invisible="delay_cost_day == 0" class="text-danger"/>
+                            <field name="rate"/>
+                            <field name="basis"/>
+                            <field name="status_date"/>
+                        </group>
+                        <group string="Расчёт">
+                            <field name="accrual_base"/>
+                            <field name="interest_window"/>
+                            <field name="prepay_mode"/>
+                            <field name="penalty_rate"/>
+                        </group>
+                        <group string="Связь с выпиской 1С">
+                            <field name="match_keys" placeholder="2026/11, 0231/02"/>
+                            <field name="principal_account_id"/>
+                            <field name="interest_account_id"/>
+                            <field name="bank_label"/>
+                            <field name="excel_key" groups="base.group_no_one"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="График" name="schedule">
+                            <field name="line_ids" context="{'default_source': 'manual'}">
+                                <list editable="bottom" default_order="date" decoration-muted="kind == 'adj'"
+                                      decoration-info="kind == 'disb'">
+                                    <field name="date"/>
+                                    <field name="kind"/>
+                                    <field name="currency_id" column_invisible="True"/>
+                                    <field name="amount"/>
+                                    <field name="source"/>
+                                    <field name="note" optional="show"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="По месяцам" name="months">
+                            <field name="month_ids" readonly="1">
+                                <list default_order="month">
+                                    <field name="month" widget="date" options="{'format': 'MM.yyyy'}"/>
+                                    <field name="currency_id" column_invisible="True"/>
+                                    <field name="interest_accrued" sum="Итого"/>
+                                    <field name="disb" sum="Итого"/>
+                                    <field name="interest_paid" sum="Итого"/>
+                                    <field name="fee" sum="Итого" optional="show"/>
+                                    <field name="principal" sum="Итого"/>
+                                    <field name="balance_end"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Факт из банка" name="fact">
+                            <field name="payment_ids" readonly="1">
+                                <list>
+                                    <field name="date"/>
+                                    <field name="kind"/>
+                                    <field name="currency_id" column_invisible="True"/>
+                                    <field name="amount" sum="Итого"/>
+                                    <field name="match_method"/>
+                                    <field name="label"/>
+                                    <field name="move_id"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="События" name="events">
+                            <separator string="Досрочные погашения и экономия"/>
+                            <field name="prepayment_ids" readonly="1">
+                                <list>
+                                    <field name="date"/>
+                                    <field name="currency_id" column_invisible="True"/>
+                                    <field name="amount" sum="Итого"/>
+                                    <field name="mode"/>
+                                    <field name="source"/>
+                                    <field name="interest_before"/>
+                                    <field name="interest_after"/>
+                                    <field name="gain" sum="Итого" decoration-success="gain &gt; 0"/>
+                                    <field name="state" widget="badge" decoration-warning="state == 'estimated'"
+                                           decoration-success="state == 'bank'"/>
+                                </list>
+                            </field>
+                            <separator string="Пени (списано банком)"/>
+                            <field name="penalty_ids" readonly="1">
+                                <list>
+                                    <field name="date"/>
+                                    <field name="currency_id" column_invisible="True"/>
+                                    <field name="amount" sum="Итого" decoration-danger="1"/>
+                                    <field name="match_method"/>
+                                    <field name="label"/>
+                                    <field name="move_id"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Ставки" name="rates">
+                            <field name="rate_ids">
+                                <list editable="bottom" default_order="date_from">
+                                    <field name="date_from"/>
+                                    <field name="rate"/>
+                                    <field name="basis"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Примечание" name="note">
+                            <field name="note"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_nj_loan_search" model="ir.ui.view">
+        <field name="name">nj.loan.search</field>
+        <field name="model">nj.loan</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="contract"/>
+                <field name="bank_id"/>
+                <filter name="active_loans" string="Действующие" domain="[('state', '=', 'active')]"/>
+                <filter name="closed" string="Погашенные" domain="[('state', '=', 'closed')]"/>
+                <filter name="draft" string="Черновики" domain="[('state', '=', 'draft')]"/>
+                <separator/>
+                <filter name="overdue" string="Просрочено" domain="[('urgency', '=', 'overdue')]"/>
+                <filter name="urgent" string="Платёж скоро" domain="[('urgency', 'in', ('urgent', 'soon'))]"/>
+                <group>
+                    <filter name="group_bank" string="Банк" context="{'group_by': 'bank_id'}"/>
+                    <filter name="group_state" string="Статус" context="{'group_by': 'state'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_nj_loan_pivot" model="ir.ui.view">
+        <field name="name">nj.loan.pivot</field>
+        <field name="model">nj.loan</field>
+        <field name="arch" type="xml">
+            <pivot string="Кредиты">
+                <field name="bank_id" type="row"/>
+                <field name="balance" type="measure"/>
+                <field name="next_payment_amount" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="view_nj_loan_graph" model="ir.ui.view">
+        <field name="name">nj.loan.graph</field>
+        <field name="model">nj.loan</field>
+        <field name="arch" type="xml">
+            <graph string="Остаток по кредитам" type="bar" stacked="1" order="desc">
+                <field name="name"/>
+                <field name="bank_id"/>
+                <field name="balance" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="action_nj_loan" model="ir.actions.act_window">
+        <field name="name">Кредиты</field>
+        <field name="res_model">nj.loan</field>
+        <field name="view_mode">list,graph,kanban,form,pivot</field>
+        <field name="context">{'search_default_active_loans': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Добавьте кредит или загрузите главный Excel</p>
+            <p>Настройки → Загрузить Excel: график, ставки и остатки переносятся из файла «Банковские кредиты NJ действующие.xlsx».</p>
+        </field>
+    </record>
+
+    <!-- ======================= Schedule lines (payment calendar) ======================= -->
+    <record id="view_nj_loan_line_list" model="ir.ui.view">
+        <field name="name">nj.loan.line.list</field>
+        <field name="model">nj.loan.line</field>
+        <field name="arch" type="xml">
+            <list string="Платёжный календарь" decoration-muted="kind == 'adj'">
+                <field name="date"/>
+                <field name="bank_id"/>
+                <field name="loan_id"/>
+                <field name="kind"/>
+                <field name="currency_id" column_invisible="True"/>
+                <field name="amount" sum="Итого"/>
+                <field name="source" optional="hide"/>
+                <field name="note" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_nj_loan_line_form" model="ir.ui.view">
+        <field name="name">nj.loan.line.form</field>
+        <field name="model">nj.loan.line</field>
+        <field name="arch" type="xml">
+            <form string="Строка графика">
+                <sheet>
+                    <group>
+                        <field name="loan_id"/>
+                        <field name="date"/>
+                        <field name="kind"/>
+                        <field name="currency_id" invisible="1"/>
+                        <field name="amount"/>
+                        <field name="source"/>
+                        <field name="note"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_nj_loan_line_search" model="ir.ui.view">
+        <field name="name">nj.loan.line.search</field>
+        <field name="model">nj.loan.line</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="loan_id"/>
+                <field name="bank_id"/>
+                <filter name="payments" string="Платежи" domain="[('kind', 'in', ('principal', 'interest', 'fee'))]"/>
+                <filter name="future" string="Предстоящие" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d'))]"/>
+                <filter name="next30" string="30 дней"
+                        domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d')), ('date', '&lt;=', (context_today() + relativedelta(days=30)).strftime('%Y-%m-%d'))]"/>
+                <filter name="adj" string="Корректировки начисления" domain="[('kind', '=', 'adj')]"/>
+                <separator/>
+                <filter name="date" string="Дата" date="date"/>
+                <group>
+                    <filter name="group_date" string="Дата" context="{'group_by': 'date:day'}"/>
+                    <filter name="group_bank" string="Банк" context="{'group_by': 'bank_id'}"/>
+                    <filter name="group_loan" string="Кредит" context="{'group_by': 'loan_id'}"/>
+                    <filter name="group_kind" string="Вид" context="{'group_by': 'kind'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_nj_loan_line_calendar" model="ir.actions.act_window">
+        <field name="name">Платёжный календарь</field>
+        <field name="res_model">nj.loan.line</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_payments': 1, 'search_default_future': 1, 'search_default_group_date': 1}</field>
+    </record>
+
+    <!-- ======================= Bank fact ======================= -->
+    <record id="view_nj_loan_payment_list" model="ir.ui.view">
+        <field name="name">nj.loan.payment.list</field>
+        <field name="model">nj.loan.payment</field>
+        <field name="arch" type="xml">
+            <list string="Факт из банка" create="0">
+                <field name="date"/>
+                <field name="bank_id"/>
+                <field name="loan_id"/>
+                <field name="kind"/>
+                <field name="currency_id" column_invisible="True"/>
+                <field name="amount" sum="Итого"/>
+                <field name="match_method"/>
+                <field name="label" optional="show"/>
+                <field name="move_id" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_nj_loan_payment_form" model="ir.ui.view">
+        <field name="name">nj.loan.payment.form</field>
+        <field name="model">nj.loan.payment</field>
+        <field name="arch" type="xml">
+            <form string="Факт из банка">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="loan_id"/>
+                            <field name="kind"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="amount"/>
+                            <field name="match_method"/>
+                        </group>
+                        <group>
+                            <field name="move_line_id"/>
+                            <field name="move_id"/>
+                            <field name="date"/>
+                            <field name="label"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_nj_loan_payment_search" model="ir.ui.view">
+        <field name="name">nj.loan.payment.search</field>
+        <field name="model">nj.loan.payment</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="loan_id"/>
+                <field name="bank_id"/>
+                <field name="label"/>
+                <filter name="penalty" string="Пени" domain="[('kind', '=', 'penalty')]"/>
+                <filter name="date" string="Дата" date="date"/>
+                <group>
+                    <filter name="group_bank" string="Банк" context="{'group_by': 'bank_id'}"/>
+                    <filter name="group_loan" string="Кредит" context="{'group_by': 'loan_id'}"/>
+                    <filter name="group_kind" string="Вид" context="{'group_by': 'kind'}"/>
+                    <filter name="group_method" string="Как привязано" context="{'group_by': 'match_method'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_nj_loan_payment" model="ir.actions.act_window">
+        <field name="name">Факт из банка</field>
+        <field name="res_model">nj.loan.payment</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ======================= Early repayments ======================= -->
+    <record id="view_nj_loan_prepayment_list" model="ir.ui.view">
+        <field name="name">nj.loan.prepayment.list</field>
+        <field name="model">nj.loan.prepayment</field>
+        <field name="arch" type="xml">
+            <list string="Досрочные погашения" create="0" edit="0">
+                <field name="date"/>
+                <field name="bank_id"/>
+                <field name="loan_id"/>
+                <field name="currency_id" column_invisible="True"/>
+                <field name="amount" sum="Итого"/>
+                <field name="mode"/>
+                <field name="source"/>
+                <field name="interest_before" optional="show"/>
+                <field name="interest_after" optional="show"/>
+                <field name="gain" sum="Итого"/>
+                <field name="state" widget="badge" decoration-warning="state == 'estimated'"
+                       decoration-success="state == 'bank'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_nj_loan_prepayment_pivot" model="ir.ui.view">
+        <field name="name">nj.loan.prepayment.pivot</field>
+        <field name="model">nj.loan.prepayment</field>
+        <field name="arch" type="xml">
+            <pivot string="Экономия от досрочных">
+                <field name="bank_id" type="row"/>
+                <field name="date" interval="month" type="col"/>
+                <field name="amount" type="measure"/>
+                <field name="gain" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="view_nj_loan_payment_pivot" model="ir.ui.view">
+        <field name="name">nj.loan.payment.pivot</field>
+        <field name="model">nj.loan.payment</field>
+        <field name="arch" type="xml">
+            <pivot string="Факт из банка">
+                <field name="bank_id" type="row"/>
+                <field name="date" interval="month" type="col"/>
+                <field name="amount" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <!-- Unmatched bank statement lines -->
+    <record id="view_move_line_nj_unmatched" model="ir.ui.view">
+        <field name="name">account.move.line.nj.unmatched</field>
+        <field name="model">account.move.line</field>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+            <list string="Не сопоставлено" create="0" edit="0">
+                <header>
+                    <button name="action_nj_assign" type="object" string="Привязать к кредиту"
+                            groups="nj_bank_loans.group_nj_loan_treasurer"/>
+                </header>
+                <field name="date"/>
+                <field name="partner_id"/>
+                <field name="account_id"/>
+                <field name="name"/>
+                <field name="move_id"/>
+                <field name="amount_currency"/>
+                <field name="currency_id" column_invisible="True"/>
+                <field name="company_currency_id" column_invisible="True"/>
+                <field name="debit" sum="Итого"/>
+                <button name="action_nj_assign" type="object" string="Привязать" icon="fa-link"
+                        groups="nj_bank_loans.group_nj_loan_treasurer"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_server_nj_unmatched" model="ir.actions.server">
+        <field name="name">Не сопоставлено</field>
+        <field name="model_id" ref="model_nj_loan"/>
+        <field name="state">code</field>
+        <field name="code">action = model.action_open_unmatched()</field>
+    </record>
+
+    <record id="action_server_nj_match_now" model="ir.actions.server">
+        <field name="name">Сопоставить выписки сейчас</field>
+        <field name="model_id" ref="model_nj_loan"/>
+        <field name="state">code</field>
+        <field name="code">action = model.action_match_now()</field>
+        <field name="group_ids" eval="[(4, ref('group_nj_loan_treasurer'))]"/>
+    </record>
+</odoo>

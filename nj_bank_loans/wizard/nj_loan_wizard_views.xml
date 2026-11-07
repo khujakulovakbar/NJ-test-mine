@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Import of the master Excel -->
+    <record id="view_nj_loan_import_wizard_form" model="ir.ui.view">
+        <field name="name">nj.loan.import.wizard.form</field>
+        <field name="model">nj.loan.import.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Загрузка кредитов из Excel">
+                <field name="state" invisible="1"/>
+                <div invisible="state != 'upload'">
+                    <p>Файл «Банковские кредиты NJ действующие.xlsx» (первый лист). Из каждого блока загружаются
+                        выдачи, погашения долга, выплаты процентов, ставки и база (360/365) из формул.
+                        Повторная загрузка заменяет график кредита из того же блока. Файл должен быть сохранён в Excel
+                        (с рассчитанными значениями формул).</p>
+                    <group>
+                        <field name="file" filename="filename" required="state == 'upload'"/>
+                        <field name="filename" invisible="1"/>
+                    </group>
+                </div>
+                <div invisible="state != 'preview'">
+                    <p>Проверьте банк (контрагента) и код кредита. Даты в файле:
+                        <field name="first_date" class="oe_inline" readonly="1"/> —
+                        <field name="last_date" class="oe_inline" readonly="1"/>.</p>
+                    <field name="line_ids">
+                        <list editable="bottom" create="0" delete="0">
+                            <field name="do_import"/>
+                            <field name="index"/>
+                            <field name="label"/>
+                            <field name="contract"/>
+                            <field name="name"/>
+                            <field name="partner_id" required="do_import"/>
+                            <field name="loan_id" options="{'no_create': True}"/>
+                            <field name="n_events"/>
+                            <field name="n_adj" optional="show"/>
+                            <field name="disb_total"/>
+                            <field name="last_balance" optional="hide"/>
+                            <field name="rate_text"/>
+                            <field name="warning" decoration-danger="warning"/>
+                            <field name="basis"/>
+                            <field name="accrual_base" optional="hide"/>
+                            <field name="interest_window" optional="hide"/>
+                        </list>
+                    </field>
+                </div>
+                <div invisible="state != 'done'">
+                    <field name="result" nolabel="1"/>
+                </div>
+                <footer>
+                    <button name="action_parse" type="object" string="Прочитать файл" class="btn-primary"
+                            invisible="state != 'upload'"/>
+                    <button name="action_import" type="object" string="Загрузить" class="btn-primary"
+                            invisible="state != 'preview'"/>
+                    <button name="action_open_loans" type="object" string="Открыть кредиты" class="btn-primary"
+                            invisible="state != 'done'"/>
+                    <button string="Закрыть" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_nj_loan_import_wizard" model="ir.actions.act_window">
+        <field name="name">Загрузить Excel</field>
+        <field name="res_model">nj.loan.import.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="context">{'dialog_size': 'extra-large'}</field>
+    </record>
+
+    <!-- Prepayment -->
+    <record id="view_nj_loan_prepay_wizard_form" model="ir.ui.view">
+        <field name="name">nj.loan.prepay.wizard.form</field>
+        <field name="model">nj.loan.prepay.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Досрочное погашение">
+                <group>
+                    <field name="loan_id"/>
+                    <field name="currency_id" invisible="1"/>
+                    <field name="date"/>
+                    <field name="amount"/>
+                    <field name="mode" widget="radio"/>
+                    <field name="note"/>
+                </group>
+                <p class="text-muted">Сокращение срока — погашаются последние платежи графика. Уменьшение платежа —
+                    все будущие погашения уменьшаются пропорционально. Будущие выплаты процентов пересчитываются по
+                    дневному начислению. Если банк прислал новый график — выберите третий вариант и загрузите файл.</p>
+                <footer>
+                    <button name="action_apply" type="object" string="Применить" class="btn-primary"/>
+                    <button string="Отмена" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_nj_loan_prepay_wizard" model="ir.actions.act_window">
+        <field name="name">Досрочное погашение</field>
+        <field name="res_model">nj.loan.prepay.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- Bank schedule -->
+    <record id="view_nj_loan_schedule_wizard_form" model="ir.ui.view">
+        <field name="name">nj.loan.schedule.wizard.form</field>
+        <field name="model">nj.loan.schedule.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Загрузка графика банка">
+                <group>
+                    <field name="loan_id"/>
+                    <field name="date_from"/>
+                    <field name="file" filename="filename"/>
+                    <field name="filename" invisible="1"/>
+                </group>
+                <p class="text-muted">Первый лист: колонка A — дата, B — погашение долга, C — проценты, D — комиссия
+                    (необязательно). Строки без даты пропускаются. Платежи графика с указанной даты заменяются.</p>
+                <footer>
+                    <button name="action_apply" type="object" string="Загрузить" class="btn-primary"/>
+                    <button string="Отмена" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_nj_loan_schedule_wizard" model="ir.actions.act_window">
+        <field name="name">Загрузить график банка</field>
+        <field name="res_model">nj.loan.schedule.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- New loan schedule -->
+    <record id="view_nj_loan_generate_wizard_form" model="ir.ui.view">
+        <field name="name">nj.loan.generate.wizard.form</field>
+        <field name="model">nj.loan.generate.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Сформировать график">
+                <group>
+                    <group string="Кредит">
+                        <field name="loan_id"/>
+                        <field name="currency_id" invisible="1"/>
+                        <field name="amount"/>
+                        <field name="date_disb"/>
+                        <field name="rate"/>
+                        <field name="basis"/>
+                    </group>
+                    <group string="Погашение">
+                        <field name="method"/>
+                        <field name="first_principal_date"/>
+                        <field name="principal_count"/>
+                        <field name="principal_interval"/>
+                        <field name="first_interest_date"/>
+                        <field name="interest_interval"/>
+                    </group>
+                </group>
+                <footer>
+                    <button name="action_generate" type="object" string="Сформировать" class="btn-primary"/>
+                    <button string="Отмена" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_nj_loan_generate_wizard" model="ir.actions.act_window">
+        <field name="name">Сформировать график</field>
+        <field name="res_model">nj.loan.generate.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- Assign bank lines -->
+    <record id="view_nj_loan_assign_wizard_form" model="ir.ui.view">
+        <field name="name">nj.loan.assign.wizard.form</field>
+        <field name="model">nj.loan.assign.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Привязать к кредиту">
+                <group>
+                    <field name="loan_id"/>
+                    <field name="move_line_ids" widget="many2many_tags" readonly="1"/>
+                </group>
+                <footer>
+                    <button name="action_assign" type="object" string="Привязать" class="btn-primary"/>
+                    <button string="Отмена" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

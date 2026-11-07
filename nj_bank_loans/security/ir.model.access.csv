@@ -1,0 +1,23 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_nj_loan_user,nj.loan user,model_nj_loan,group_nj_loan_user,1,0,0,0
+access_nj_loan_treasurer,nj.loan treasurer,model_nj_loan,group_nj_loan_treasurer,1,1,1,0
+access_nj_loan_manager,nj.loan manager,model_nj_loan,group_nj_loan_manager,1,1,1,1
+access_nj_loan_line_user,nj.loan.line user,model_nj_loan_line,group_nj_loan_user,1,0,0,0
+access_nj_loan_line_treasurer,nj.loan.line treasurer,model_nj_loan_line,group_nj_loan_treasurer,1,1,1,1
+access_nj_loan_rate_user,nj.loan.rate user,model_nj_loan_rate,group_nj_loan_user,1,0,0,0
+access_nj_loan_rate_treasurer,nj.loan.rate treasurer,model_nj_loan_rate,group_nj_loan_treasurer,1,1,1,1
+access_nj_loan_payment_user,nj.loan.payment user,model_nj_loan_payment,group_nj_loan_user,1,0,0,0
+access_nj_loan_payment_treasurer,nj.loan.payment treasurer,model_nj_loan_payment,group_nj_loan_treasurer,1,1,1,1
+access_nj_loan_day_user,nj.loan.day user,model_nj_loan_day,group_nj_loan_user,1,0,0,0
+access_nj_loan_month_user,nj.loan.month user,model_nj_loan_month,group_nj_loan_user,1,0,0,0
+access_nj_loan_planfact_user,nj.loan.planfact user,model_nj_loan_planfact,group_nj_loan_user,1,0,0,0
+access_nj_loan_dashboard_user,nj.loan.dashboard user,model_nj_loan_dashboard,group_nj_loan_user,1,1,1,0
+access_nj_loan_import_wizard,nj.loan.import.wizard,model_nj_loan_import_wizard,group_nj_loan_treasurer,1,1,1,0
+access_nj_loan_import_wizard_line,nj.loan.import.wizard.line,model_nj_loan_import_wizard_line,group_nj_loan_treasurer,1,1,1,1
+access_nj_loan_prepay_wizard,nj.loan.prepay.wizard,model_nj_loan_prepay_wizard,group_nj_loan_treasurer,1,1,1,0
+access_nj_loan_schedule_wizard,nj.loan.schedule.wizard,model_nj_loan_schedule_wizard,group_nj_loan_treasurer,1,1,1,0
+access_nj_loan_generate_wizard,nj.loan.generate.wizard,model_nj_loan_generate_wizard,group_nj_loan_treasurer,1,1,1,0
+access_nj_loan_assign_wizard,nj.loan.assign.wizard,model_nj_loan_assign_wizard,group_nj_loan_treasurer,1,1,1,0
+access_nj_loan_prepayment_user,nj.loan.prepayment user,model_nj_loan_prepayment,group_nj_loan_user,1,0,0,0
+access_nj_loan_prepayment_treasurer,nj.loan.prepayment treasurer,model_nj_loan_prepayment,group_nj_loan_treasurer,1,1,1,1
+access_nj_loan_notice_user,nj.loan.notice user,model_nj_loan_notice,group_nj_loan_user,1,1,1,0

@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ======================= Daily view (as in Excel) ======================= -->
+    <record id="view_nj_loan_day_list" model="ir.ui.view">
+        <field name="name">nj.loan.day.list</field>
+        <field name="model">nj.loan.day</field>
+        <field name="arch" type="xml">
+            <list string="Дневной вид" create="0" edit="0" delete="0"
+                  decoration-bf="principal != 0 or interest_paid != 0 or fee != 0 or disb != 0">
+                <field name="date"/>
+                <field name="weekday"/>
+                <field name="loan_id" optional="hide"/>
+                <field name="bank_id" optional="hide"/>
+                <field name="currency_id" column_invisible="True"/>
+                <field name="interest" sum="Итого" options="{'no_symbol': True}"/>
+                <field name="disb" sum="Итого" options="{'no_symbol': True}"/>
+                <field name="interest_paid" sum="Итого" options="{'no_symbol': True}"/>
+                <field name="fee" sum="Итого" options="{'no_symbol': True}" optional="show"/>
+                <field name="principal" sum="Итого" options="{'no_symbol': True}"/>
+                <field name="balance" options="{'no_symbol': True}"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_nj_loan_day_search" model="ir.ui.view">
+        <field name="name">nj.loan.day.search</field>
+        <field name="model">nj.loan.day</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="loan_id"/>
+                <field name="bank_id"/>
+                <field name="date"/>
+                <filter name="year_current" string="Текущий год"
+                        domain="[('date', '&gt;=', context_today().strftime('%Y-01-01')), ('date', '&lt;=', context_today().strftime('%Y-12-31'))]"/>
+                <filter name="from_2026" string="С 2026 года" domain="[('date', '&gt;=', '2026-01-01')]"/>
+                <filter name="with_flows" string="Только дни с платежами"
+                        domain="['|', '|', '|', ('principal', '!=', 0), ('interest_paid', '!=', 0), ('fee', '!=', 0), ('disb', '!=', 0)]"/>
+                <separator/>
+                <filter name="date" string="Дата" date="date"/>
+                <group>
+                    <filter name="group_loan" string="Кредит" context="{'group_by': 'loan_id'}"/>
+                    <filter name="group_month" string="Месяц" context="{'group_by': 'date:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_nj_loan_day" model="ir.actions.act_window">
+        <field name="name">Дневной вид</field>
+        <field name="res_model">nj.loan.day</field>
+        <field name="view_mode">list</field>
+        <field name="context">{'search_default_year_current': 1, 'search_default_group_loan': 1}</field>
+    </record>
+
+    <!-- ======================= Monthly ======================= -->
+    <record id="view_nj_loan_month_list" model="ir.ui.view">
+        <field name="name">nj.loan.month.list</field>
+        <field name="model">nj.loan.month</field>
+        <field name="arch" type="xml">
+            <list string="По месяцам" create="0" edit="0" delete="0">
+                <field name="month" widget="date" options="{'format': 'MM.yyyy'}"/>
+                <field name="bank_id"/>
+                <field name="loan_id"/>
+                <field name="currency_id" column_invisible="True"/>
+                <field name="interest_accrued" sum="Итого" options="{'no_symbol': True}"/>
+                <field name="disb" sum="Итого" options="{'no_symbol': True}"/>
+                <field name="interest_paid" sum="Итого" options="{'no_symbol': True}"/>
+                <field name="fee" sum="Итого" options="{'no_symbol': True}" optional="show"/>
+                <field name="principal" sum="Итого" options="{'no_symbol': True}"/>
+                <field name="payment" sum="Итого" options="{'no_symbol': True}"/>
+                <field name="balance_end" sum="Итого" options="{'no_symbol': True}"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_nj_loan_month_pivot" model="ir.ui.view">
+        <field name="name">nj.loan.month.pivot</field>
+        <field name="model">nj.loan.month</field>
+        <field name="arch" type="xml">
+            <!-- rows Bank → Loan: «+» opens the next level in one click; columns by year,
+                 a year opens to quarter / month from its header -->
+            <pivot string="По месяцам">
+                <field name="bank_id" type="row"/>
+                <field name="loan_id" type="row"/>
+                <field name="month" interval="year" type="col"/>
+                <field name="principal" type="measure" string="Осн. долг"/>
+                <field name="interest_paid" type="measure" string="Проценты"/>
+                <field name="fee" type="measure" string="БГ"/>
+                <field name="payment" type="measure" string="Всего"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="view_nj_loan_month_graph" model="ir.ui.view">
+        <field name="name">nj.loan.month.graph</field>
+        <field name="model">nj.loan.month</field>
+        <field name="arch" type="xml">
+            <graph string="Платежи по месяцам" type="bar" stacked="1">
+                <field name="month" interval="month"/>
+                <field name="bank_id"/>
+                <field name="payment" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="view_nj_loan_month_search" model="ir.ui.view">
+        <field name="name">nj.loan.month.search</field>
+        <field name="model">nj.loan.month</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="loan_id"/>
+                <field name="bank_id"/>
+                <filter name="from_2026" string="С 2026 года" domain="[('month', '&gt;=', '2026-01-01')]"/>
+                <filter name="year_current" string="Текущий год"
+                        domain="[('month', '&gt;=', context_today().strftime('%Y-01-01')), ('month', '&lt;=', context_today().strftime('%Y-12-31'))]"/>
+                <separator/>
+                <filter name="month" string="Месяц" date="month"/>
+                <group>
+                    <filter name="group_bank" string="Банк" context="{'group_by': 'bank_id'}"/>
+                    <filter name="group_loan" string="Кредит" context="{'group_by': 'loan_id'}"/>
+                    <filter name="group_month" string="Месяц" context="{'group_by': 'month:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_nj_loan_month" model="ir.actions.act_window">
+        <field name="name">По месяцам</field>
+        <field name="res_model">nj.loan.month</field>
+        <field name="view_mode">pivot,list,graph</field>
+        <field name="context">{'search_default_from_2026': 1}</field>
+    </record>
+
+    <record id="view_nj_loan_month_balance_graph" model="ir.ui.view">
+        <field name="name">nj.loan.month.balance.graph</field>
+        <field name="model">nj.loan.month</field>
+        <field name="priority">20</field>
+        <field name="arch" type="xml">
+            <graph string="Остаток долга по банкам" type="line" stacked="1">
+                <field name="month" interval="month"/>
+                <field name="bank_id"/>
+                <field name="balance_end" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="action_nj_loan_balance_graph" model="ir.actions.act_window">
+        <field name="name">Остаток долга по банкам</field>
+        <field name="res_model">nj.loan.month</field>
+        <field name="view_mode">graph,list</field>
+        <field name="view_id" ref="view_nj_loan_month_balance_graph"/>
+        <field name="context">{'search_default_from_2026': 1}</field>
+    </record>
+
+    <!-- ======================= Plan / fact ======================= -->
+    <record id="view_nj_loan_planfact_list" model="ir.ui.view">
+        <field name="name">nj.loan.planfact.list</field>
+        <field name="model">nj.loan.planfact</field>
+        <field name="arch" type="xml">
+            <list string="План-факт" create="0" edit="0" delete="0"
+                  decoration-danger="status in ('unpaid', 'diff') and diff_type != 'timing'"
+                  decoration-muted="status in ('nodata', 'future')">
+                <field name="month" widget="date" options="{'format': 'MM.yyyy'}"/>
+                <field name="bank_id"/>
+                <field name="loan_id"/>
+                <field name="kind"/>
+                <field name="currency_id" column_invisible="True"/>
+                <field name="plan_date"/>
+                <field name="plan_amount" sum="Итого" options="{'no_symbol': True}"/>
+                <field name="fact_date"/>
+                <field name="fact_amount" sum="Итого" options="{'no_symbol': True}"/>
+                <field name="diff" sum="Итого" options="{'no_symbol': True}"/>
+                <field name="diff_type" widget="badge" decoration-warning="diff_type == 'account'"
+                       decoration-info="diff_type == 'timing'" decoration-danger="diff_type in ('amount', 'missing')"/>
+                <field name="status" widget="badge" decoration-success="status == 'ok'"
+                       decoration-danger="status in ('unpaid', 'diff')" decoration-info="status in ('wait', 'future')"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_nj_loan_planfact_pivot" model="ir.ui.view">
+        <field name="name">nj.loan.planfact.pivot</field>
+        <field name="model">nj.loan.planfact</field>
+        <field name="arch" type="xml">
+            <pivot string="Сводка по банкам: план / факт">
+                <field name="bank_id" type="row"/>
+                <field name="month" interval="month" type="col"/>
+                <field name="plan_amount" type="measure"/>
+                <field name="fact_amount" type="measure"/>
+                <field name="diff" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="view_nj_loan_planfact_graph" model="ir.ui.view">
+        <field name="name">nj.loan.planfact.graph</field>
+        <field name="model">nj.loan.planfact</field>
+        <field name="arch" type="xml">
+            <graph string="Платежи по плану" type="bar" stacked="1">
+                <field name="month" interval="month"/>
+                <field name="kind"/>
+                <field name="plan_amount" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="view_nj_loan_planfact_search" model="ir.ui.view">
+        <field name="name">nj.loan.planfact.search</field>
+        <field name="model">nj.loan.planfact</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="loan_id"/>
+                <field name="bank_id"/>
+                <filter name="loaded" string="Выписка загружена" domain="[('fact_loaded', '=', True)]"/>
+                <filter name="with_diff" string="Есть разница" domain="[('has_diff', '=', True)]"/>
+                <filter name="from_2026" string="С 2026 года" domain="[('month', '&gt;=', '2026-01-01')]"/>
+                <filter name="year_current" string="Текущий год"
+                        domain="[('month', '&gt;=', context_today().strftime('%Y-01-01')), ('month', '&lt;=', context_today().strftime('%Y-12-31'))]"/>
+                <separator/>
+                <filter name="month" string="Месяц" date="month"/>
+                <group>
+                    <filter name="group_bank" string="Банк" context="{'group_by': 'bank_id'}"/>
+                    <filter name="group_loan" string="Кредит" context="{'group_by': 'loan_id'}"/>
+                    <filter name="group_month" string="Месяц" context="{'group_by': 'month:month'}"/>
+                    <filter name="group_kind" string="Вид" context="{'group_by': 'kind'}"/>
+                    <filter name="group_type" string="Тип разницы" context="{'group_by': 'diff_type'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_nj_loan_planfact" model="ir.actions.act_window">
+        <field name="name">План-факт по платежам</field>
+        <field name="res_model">nj.loan.planfact</field>
+        <field name="view_mode">list,pivot,graph</field>
+        <field name="context">{'search_default_loaded': 1}</field>
+    </record>
+
+    <record id="action_nj_loan_bank_summary" model="ir.actions.act_window">
+        <field name="name">Сводка по банкам</field>
+        <field name="res_model">nj.loan.planfact</field>
+        <field name="view_mode">pivot,graph,list</field>
+        <field name="context">{'search_default_year_current': 1}</field>
+    </record>
+</odoo>

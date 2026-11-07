@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_nj_loans" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.nj.loans</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="account.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//app[@name='account']" position="inside">
+                    <block title="Кредиты: напоминания о платежах" name="nj_reminders" groups="nj_bank_loans.group_nj_loan_manager">
+                        <setting string="Напоминать за" help="Дней до платежа, через запятую (например 5,1): активность ответственному.">
+                            <field name="nj_remind_days"/>
+                        </setting>
+                        <setting string="Цвет срока" help="Срочно (красный) и скоро (оранжевый), дней.">
+                            <div class="d-flex gap-2"><field name="nj_urgent_days"/><field name="nj_soon_days"/></div>
+                        </setting>
+                        <setting string="CFO" help="Получает уведомления, если в блоке «кому показывать» никто не отмечен.">
+                            <field name="nj_cfo_user_id"/>
+                        </setting>
+                    </block>
+                    <block title="Кредиты: кому показывать уведомления" name="nj_recipients" groups="nj_bank_loans.group_nj_loan_manager">
+                        <setting string="Платёж скоро / сегодня" help="Всплывающее окно о ближайших платежах. Пусто — только CFO.">
+                            <field name="nj_notify_due_user_ids" widget="many2many_tags"/>
+                        </setting>
+                        <setting string="Просрочка" help="Окно и задача, если плановый платёж не найден в выписке.">
+                            <field name="nj_notify_overdue_user_ids" widget="many2many_tags"/>
+                        </setting>
+                        <setting string="Списана пеня" help="Банк списал пеню / штраф с расчётного счёта.">
+                            <field name="nj_notify_penalty_user_ids" widget="many2many_tags"/>
+                        </setting>
+                        <setting string="Досрочное погашение" help="Найдено досрочное погашение: пересчёт графика и экономия.">
+                            <field name="nj_notify_prepay_user_ids" widget="many2many_tags"/>
+                        </setting>
+                    </block>
+                    <block title="Кредиты: факт из выписок банка" name="nj_fact" groups="nj_bank_loans.group_nj_loan_manager">
+                        <setting string="Выписки загружены с" help="С этой даты строки 7811 / 6921 сопоставляются с кредитами и считается план-факт.">
+                            <field name="nj_fact_start_date"/>
+                        </setting>
+                        <setting string="Сопоставление по сумме" help="Окно, дней, и допуск по сумме, % — для строк без номера договора.">
+                            <div class="d-flex gap-2"><field name="nj_match_days"/><field name="nj_match_tolerance"/></div>
+                        </setting>
+                        <setting string="Слова пени" help="Списание со счёта банка с этим словом в назначении — пеня по кредиту.">
+                            <field name="nj_penalty_keywords"/>
+                        </setting>
+                        <setting string="Окно досрочного, дней" help="Оплата долга сверх графика ближайших N дней — досрочное погашение (график пересчитывается автоматически).">
+                            <field name="nj_prepay_window"/>
+                        </setting>
+                    </block>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="action_nj_loan_settings" model="ir.actions.act_window">
+        <field name="name">Настройки</field>
+        <field name="res_model">res.config.settings</field>
+        <field name="view_mode">form</field>
+        <field name="target">current</field>
+        <field name="context">{'module': 'account', 'bin_size': False}</field>
+    </record>
+</odoo>
