@@ -1,4 +1,6 @@
+import base64
 import datetime
+import logging
 import re
 from collections import defaultdict
 
@@ -6,11 +8,12 @@ from markupsafe import Markup
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError
-from odoo.tools import float_round, format_amount, format_date
+from odoo.tools import file_open, float_round, format_amount, format_date
 
 from ..tools import engine
 
 PAY_KINDS = ('principal', 'interest', 'fee')
+_logger = logging.getLogger(__name__)
 
 
 def _money(env, amount, currency):
@@ -296,6 +299,35 @@ class NjLoan(models.Model):
         if line.currency_id == loan.currency_id:
             return abs(line.amount_currency)
         return line.company_currency_id._convert(abs(line.balance), loan.currency_id, line.company_id, line.date)
+
+    @api.model
+    def _nj_autoload_master(self):
+        """First install only: load the bundled master Excel so the loans appear inside Loans without
+        any manual upload.  Idempotent: does nothing when the company already has loans.
+        A bank that cannot be matched to a partner is skipped (listed in the log), never guessed."""
+        company = self.env.company
+        if self.with_context(active_test=False).search_count([('company_id', '=', company.id)]):
+            return False
+        try:
+            with file_open('nj_bank_loans/data/nj_loans_master.xlsx', 'rb') as fh:
+                data = fh.read()
+        except FileNotFoundError:
+            _logger.warning("nj_bank_loans: bundled master Excel not found, autoload skipped")
+            return False
+        wizard = self.env['nj.loan.import.wizard'].create(
+            {'file': base64.b64encode(data), 'filename': 'nj_loans_master.xlsx'})
+        wizard.action_parse()
+        skipped = wizard.line_ids.filtered(lambda l: not l.partner_id)
+        skipped.write({'do_import': False})
+        if not wizard.line_ids.filtered('do_import'):
+            _logger.warning("nj_bank_loans: autoload skipped, no bank partners found for %s",
+                            ", ".join(skipped.mapped('label')))
+            return False
+        wizard.action_import()
+        if skipped:
+            _logger.warning("nj_bank_loans: autoload skipped loans without a bank partner: %s",
+                            ", ".join(skipped.mapped('label')))
+        return True
 
     @api.model
     def _nj_place_menu(self):

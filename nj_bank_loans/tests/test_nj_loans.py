@@ -612,3 +612,46 @@ class TestNjLoans(AccountTestInvoicingCommon):
         self.assertEqual((m.interest_paid, m.fee, m.principal, m.payment), (1_000.0, 250.0, 10_000.0, 11_250.0))
         day = self.env['nj.loan.day'].search([('loan_id', '=', loan.id), ('date', '=', D(2026, 2, 10))])
         self.assertEqual((day.interest_paid, day.fee), (1_000.0, 250.0))
+
+    # ------------------------------------------------------------------ v1.2.4: autoload + instant sync
+    def test_22_posting_a_statement_links_it_at_once(self):
+        """Desired: a posted bank line on the loan account is linked to the loan without the nightly cron."""
+        loan = self._loan('T-SYNC', self.bank_a, [(D(2026, 1, 1), 'disb', 100_000.0),
+                                                  (D(2026, 2, 20), 'principal', 10_000.0)])
+        line = self._bank_line(self.bank_a, self.acc_principal, D(2026, 2, 20), 10_000.0, "погашение кредита")
+        self.assertEqual(line.nj_loan_payment_ids.loan_id, loan)
+        self.assertEqual(line.nj_loan_payment_ids.amount, 10_000.0)
+
+    def test_23_unposting_drops_the_fact_and_reposting_restores_it(self):
+        loan = self._loan('T-UNPOST', self.bank_a, [(D(2026, 1, 1), 'disb', 100_000.0),
+                                                    (D(2026, 2, 20), 'principal', 10_000.0)])
+        line = self._bank_line(self.bank_a, self.acc_principal, D(2026, 2, 20), 10_000.0, "погашение")
+        self.assertTrue(line.nj_loan_payment_ids)
+        move = line.move_id
+        move.button_draft()
+        self.assertFalse(self.env['nj.loan.payment'].search([('loan_id', '=', loan.id)]))
+        move.action_post()
+        self.assertEqual(len(self.env['nj.loan.payment'].search([('loan_id', '=', loan.id)])), 1)
+
+    def test_24_sync_error_never_blocks_posting(self):
+        """Desired: a failure inside the loan sync is logged; the entry is still posted."""
+        self._loan('T-SAFE', self.bank_a, [(D(2026, 1, 1), 'disb', 100_000.0)])
+        orig = type(self.env['nj.loan']).match_statement_lines
+
+        def boom(self, lines=None):
+            raise RuntimeError("test failure")
+        type(self.env['nj.loan']).match_statement_lines = boom
+        try:
+            line = self._bank_line(self.bank_a, self.acc_principal, D(2026, 2, 20), 1_000.0, "погашение")
+        finally:
+            type(self.env['nj.loan']).match_statement_lines = orig
+        self.assertEqual(line.move_id.state, 'posted')
+
+    def test_25_autoload_is_idempotent_and_loads_all_loans(self):
+        Loan = self.env['nj.loan']
+        for name in ("OFB Test Bank", "Trastbank Test", "Hamkorbank Test"):
+            self.env['res.partner'].create({'name': name, 'is_company': True})
+        self.assertTrue(Loan._nj_autoload_master())
+        self.assertEqual(Loan.search_count([('company_id', '=', self.env.company.id)]), 10)
+        self.assertFalse(Loan._nj_autoload_master(), "second call must do nothing")
+        self.assertEqual(Loan.search_count([('company_id', '=', self.env.company.id)]), 10)

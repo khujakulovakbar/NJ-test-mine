@@ -1,6 +1,6 @@
 {
     'name': 'NJ: Банковские кредиты',
-    'version': '19.0.1.2.3',
+    'version': '19.0.1.2.4',
     'category': 'Accounting/Accounting',
     'summary': 'Реестр кредитов, дневной график как в Excel, план-факт по выпискам банка, напоминания о платежах',
     'description': """
@@ -28,6 +28,7 @@
         'views/nj_loan_dashboard_views.xml',
         'views/res_config_settings_views.xml',
         'views/nj_loan_menus.xml',
+        'data/nj_loan_autoload.xml',
     ],
     'assets': {
         'web.assets_backend': [

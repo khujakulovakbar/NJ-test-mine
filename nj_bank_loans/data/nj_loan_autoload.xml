@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- First install: the loans appear inside Loans by themselves (bundled master Excel).
+         Idempotent: the method does nothing if the company already has loans. -->
+    <function model="nj.loan" name="_nj_autoload_master"/>
+</odoo>
