@@ -2,7 +2,7 @@
 <odoo>
     <!-- Section «Кредиты» in Accounting → Accounting, right after «Assets & Liabilities» (standard Loans).
          4 entries; other reports are views / buttons inside them (see history D22). -->
-    <menuitem id="menu_nj_loan_root" name="Кредиты" parent="account.menu_finance_entries" sequence="11"
+    <menuitem id="menu_nj_loan_root" name="Кредиты" parent="account_loans.menu_action_loans" sequence="11"
               groups="nj_bank_loans.group_nj_loan_user"/>
 
     <menuitem id="menu_nj_loan_dashboard" name="Обзор" parent="menu_nj_loan_root"
@@ -13,6 +13,9 @@
               action="action_nj_loan_planfact" sequence="3"/>
     <menuitem id="menu_nj_loan_rep_month" name="По месяцам" parent="menu_nj_loan_root"
               action="action_nj_loan_month" sequence="4"/>
+
+    <menuitem id="menu_nj_loan_settings" name="Настройки кредитов" parent="menu_nj_loan_root"
+              action="action_nj_loan_settings" sequence="5" groups="nj_bank_loans.group_nj_loan_manager"/>
 
     <function model="nj.loan" name="_nj_place_menu"/>
 </odoo>

@@ -384,11 +384,8 @@ class TestNjLoans(AccountTestInvoicingCommon):
     def test_12_menu_placement(self):
         root = self.env.ref('nj_bank_loans.menu_nj_loan_root')
         self.env['nj.loan']._nj_place_menu()
-        self.assertEqual(root.parent_id, self.env.ref('account.menu_finance_entries'))
+        self.assertEqual(root.parent_id, self.env.ref('account_loans.menu_action_loans'))
         self.assertFalse(root.child_id.child_id, "items must be flat (section -> items)")
-        assets = self.env.ref('accountant.account_assets_liabilities_menu', raise_if_not_found=False)
-        if assets:
-            self.assertEqual(root.sequence, assets.sequence + 1)
 
     # ------------------------------------------------------------------ phase 2: penalties, auto prepayment, recipients
     def _cash_out(self, bank, date, amount, text, expense=None):

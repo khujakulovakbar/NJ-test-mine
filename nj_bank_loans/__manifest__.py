@@ -1,6 +1,6 @@
 {
     'name': 'NJ: Банковские кредиты',
-    'version': '19.0.1.2.2',
+    'version': '19.0.1.2.3',
     'category': 'Accounting/Accounting',
     'summary': 'Реестр кредитов, дневной график как в Excel, план-факт по выпискам банка, напоминания о платежах',
     'description': """
@@ -16,7 +16,7 @@
 """,
     'author': 'NATURAL JUICE',
     'license': 'LGPL-3',
-    'depends': ['account', 'mail'],
+    'depends': ['account', 'mail', 'account_loans'],
     'external_dependencies': {'python': ['openpyxl']},
     'data': [
         'security/nj_loan_security.xml',

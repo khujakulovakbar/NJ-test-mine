@@ -299,16 +299,12 @@ class NjLoan(models.Model):
 
     @api.model
     def _nj_place_menu(self):
-        """Keep «Кредиты» in Accounting → Accounting right after «Assets & Liabilities»
-        (the standard «Loans» lives there in Enterprise)."""
+        """Put «Кредиты» inside the standard «Loans» menu (account_loans), so all loan
+        screens and settings are reached from one place."""
         root = self.env.ref('nj_bank_loans.menu_nj_loan_root', raise_if_not_found=False)
-        parent = self.env.ref('account.menu_finance_entries', raise_if_not_found=False)
-        assets = self.env.ref('accountant.account_assets_liabilities_menu', raise_if_not_found=False)
-        if root and parent:
-            vals = {'parent_id': parent.id}
-            if assets and assets.parent_id == parent:
-                vals['sequence'] = assets.sequence + 1
-            root.sudo().write(vals)
+        loans = self.env.ref('account_loans.menu_action_loans', raise_if_not_found=False)
+        if root and loans:
+            root.sudo().write({'parent_id': loans.id})
         return True
 
     # ------------------------------------------------------------------ early repayment
